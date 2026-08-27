@@ -10,46 +10,47 @@
     h1{font-size:1.35rem;margin:0 0 8px}
     .card{background:#1e293b;border-radius:12px;padding:16px;margin:16px 0}
     .step{font-weight:600;color:#38bdf8;margin-bottom:6px}
-    a.btn{display:block;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0}
-    a.bm{display:block;text-align:center;background:#059669;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:8px 0;font-size:1rem}
+    a.btn,button.primary{display:block;width:100%;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0;border:none;font-size:1rem}
+    button.green{background:#059669}
     input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
-    button{width:100%;padding:12px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:600;font-size:1rem}
+    button.purple{width:100%;padding:12px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:600;font-size:1rem}
     .ok{color:#4ade80}.err{color:#f87171}
     small{color:#94a3b8}
     #err{display:none}
-    #splash{text-align:center;padding:24px 8px}
-    #count{font-size:2rem;font-weight:700;color:#38bdf8}
+    ol{padding-left:1.2rem;margin:8px 0}
+    li{margin:10px 0}
   </style>
 </head>
 <body>
-  <h1>🔄 Refresh monitoring session</h1>
+  <h1>🔄 Finish session refresh</h1>
   <p id="err" class="err"></p>
-  <div id="splash" style="display:none">
-    <p>Opening ServiceNow queue…</p>
-    <p id="count">3</p>
-    <p><small>After login, tap your <strong>Send to Monitor</strong> favorite.</small></p>
-  </div>
   <div id="app" style="display:none">
-    <p><small>Monitoring resumes ~1 minute after success.</small></p>
-    <div class="card" id="setup" style="display:none">
-      <div class="step">One-time setup (30 sec)</div>
-      <p>Tap and hold → <strong>Add to Favorites</strong> → name it <strong>Send to Monitor</strong></p>
-      <a class="bm" id="bookmark" href="#">📤 Send to Monitor</a>
+    <p><small>🔒 One-time link from Telegram — do not save. Each failure sends a new link.</small></p>
+    <div class="card">
+      <div class="step">Instructions</div>
+      <ol>
+        <li>Already logged in to <strong>ServiceNow</strong>? (Use link 1 from Telegram)</li>
+        <li>Switch to your <strong>ServiceNow tab</strong> in Safari</li>
+        <li>Tap the button below to <strong>copy</strong> the session script</li>
+        <li>Tap Safari <strong>address bar</strong> → <strong>Paste</strong> → <strong>Go</strong></li>
+        <li>You'll get <strong>✅ confirmation in Telegram</strong></li>
+      </ol>
     </div>
     <div class="card">
-      <div class="step">Open ServiceNow</div>
-      <a class="btn" id="snow" href="#" rel="noopener">Open queue (MFA login)</a>
+      <div class="step">Step 1 — ServiceNow login</div>
+      <a class="btn" id="snow" href="#" rel="noopener">Open ServiceNow queue</a>
     </div>
     <div class="card">
-      <div class="step">After login on ServiceNow</div>
-      <p>Tap your Safari Favorite <strong>Send to Monitor</strong> while on the ServiceNow page.</p>
-      <a class="bm" id="bookmark2" href="#">📤 Send to Monitor</a>
+      <div class="step">Step 2 — Send session (no bookmark needed)</div>
+      <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
+      <p id="copyMsg"></p>
+      <p><small>Then paste in Safari address bar while on the ServiceNow page.</small></p>
     </div>
     <div class="card">
-      <div class="step">Fallback — paste manually</div>
+      <div class="step">Fallback — paste cookie manually</div>
       <textarea id="cookie" rows="3" placeholder="Cookie string"></textarea>
       <input id="gck" placeholder="g_ck token (optional)"/>
-      <button type="button" id="submit">Upload session</button>
+      <button type="button" class="purple" id="submit">Upload session</button>
       <p id="msg"></p>
     </div>
   </div>
@@ -59,30 +60,44 @@
     const SNOW_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_group%253Db05a5f061b3ad490adc4a9f9bc4bcb46%255Estate%253D10%26sysparm_first_row%253D1%26sysparm_view%253D';
     const params = new URLSearchParams(location.search);
     const token = params.get('t');
-    const auto = params.get('auto') !== '0';
     const errEl = document.getElementById('err');
 
-    function bmHref(tok) {
+    function sessionScript(tok) {
       const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
-      const js = `(function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:document.cookie,p_g_ck:g})}).then(r=>r.json()).then(d=>alert(d.ok?'✅ Session updated! Monitoring resumes in ~1 min.':('❌ '+(d.error||'Failed')))).catch(e=>alert('❌ '+e))})();`;
+      const js = `(function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:document.cookie,p_g_ck:g})}).then(r=>r.json()).then(d=>alert(d.ok?'✅ Done! Check Telegram for confirmation.':('❌ '+(d.error||'Failed')))).catch(e=>alert('❌ '+e))})();`;
       return 'javascript:' + encodeURIComponent(js);
-    }
-
-    function goSnow() {
-      location.replace(SNOW_URL);
     }
 
     if (!token) {
       errEl.style.display = 'block';
-      errEl.textContent = 'Missing link. Open the link from your Telegram session-failed alert.';
+      errEl.textContent = 'Missing link. Use the fresh link from your latest Telegram session-failed alert.';
     } else {
-      const href = bmHref(token);
-      document.getElementById('bookmark').href = href;
-      document.getElementById('bookmark2').href = href;
+      document.getElementById('app').style.display = 'block';
       document.getElementById('snow').href = SNOW_URL;
-      document.getElementById('snow').onclick = (e) => { e.preventDefault(); goSnow(); };
-
+      const script = sessionScript(token);
       const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
+
+      document.getElementById('copyScript').onclick = async () => {
+        const el = document.getElementById('copyMsg');
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(script);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = script;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          el.textContent = '✅ Copied! Switch to ServiceNow tab → paste in address bar → Go';
+          el.className = 'ok';
+        } catch (e) {
+          el.textContent = '❌ Copy failed — use manual fallback below';
+          el.className = 'err';
+        }
+      };
+
       document.getElementById('submit').onclick = async () => {
         const msg = document.getElementById('msg');
         msg.textContent = 'Uploading...';
@@ -98,37 +113,13 @@
             }),
           });
           const d = await r.json();
-          if (d.ok) { msg.textContent = '✅ ' + (d.message || 'Updated'); msg.className = 'ok'; }
+          if (d.ok) { msg.textContent = '✅ ' + (d.message || 'Updated') + ' — check Telegram'; msg.className = 'ok'; }
           else { msg.textContent = '❌ ' + (d.error || 'Failed'); msg.className = 'err'; }
         } catch (e) {
           msg.textContent = '❌ ' + e;
           msg.className = 'err';
         }
       };
-
-      const ready = localStorage.getItem('monitor-bm-ready') === '1';
-      if (auto) {
-        if (!ready) {
-          document.getElementById('app').style.display = 'block';
-          document.getElementById('setup').style.display = 'block';
-        } else {
-          document.getElementById('splash').style.display = 'block';
-          let n = 3;
-          const el = document.getElementById('count');
-          const t = setInterval(() => {
-            n -= 1;
-            el.textContent = String(n);
-            if (n <= 0) { clearInterval(t); goSnow(); }
-          }, 700);
-        }
-      } else {
-        document.getElementById('app').style.display = 'block';
-        if (!ready) document.getElementById('setup').style.display = 'block';
-      }
-
-      document.getElementById('bookmark').addEventListener('click', () => {
-        localStorage.setItem('monitor-bm-ready', '1');
-      });
     }
   </script>
 </body>
