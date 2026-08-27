@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Refresh ServiceNow Session</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:20px;background:#0f172a;color:#e2e8f0;line-height:1.5}
+    h1{font-size:1.35rem;margin:0 0 8px}
+    .card{background:#1e293b;border-radius:12px;padding:16px;margin:16px 0}
+    .step{font-weight:600;color:#38bdf8;margin-bottom:6px}
+    a.btn{display:block;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0}
+    a.bm{display:block;text-align:center;background:#059669;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:8px 0;font-size:1rem}
+    input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
+    button{width:100%;padding:12px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:600;font-size:1rem}
+    .ok{color:#4ade80}.err{color:#f87171}
+    small{color:#94a3b8}
+    #err{display:none}
+    #splash{text-align:center;padding:24px 8px}
+    #count{font-size:2rem;font-weight:700;color:#38bdf8}
+  </style>
+</head>
+<body>
+  <h1>🔄 Refresh monitoring session</h1>
+  <p id="err" class="err"></p>
+  <div id="splash" style="display:none">
+    <p>Opening ServiceNow queue…</p>
+    <p id="count">3</p>
+    <p><small>After login, tap your <strong>Send to Monitor</strong> favorite.</small></p>
+  </div>
+  <div id="app" style="display:none">
+    <p><small>Monitoring resumes ~1 minute after success.</small></p>
+    <div class="card" id="setup" style="display:none">
+      <div class="step">One-time setup (30 sec)</div>
+      <p>Tap and hold → <strong>Add to Favorites</strong> → name it <strong>Send to Monitor</strong></p>
+      <a class="bm" id="bookmark" href="#">📤 Send to Monitor</a>
+    </div>
+    <div class="card">
+      <div class="step">Open ServiceNow</div>
+      <a class="btn" id="snow" href="#" rel="noopener">Open queue (MFA login)</a>
+    </div>
+    <div class="card">
+      <div class="step">After login on ServiceNow</div>
+      <p>Tap your Safari Favorite <strong>Send to Monitor</strong> while on the ServiceNow page.</p>
+      <a class="bm" id="bookmark2" href="#">📤 Send to Monitor</a>
+    </div>
+    <div class="card">
+      <div class="step">Fallback — paste manually</div>
+      <textarea id="cookie" rows="3" placeholder="Cookie string"></textarea>
+      <input id="gck" placeholder="g_ck token (optional)"/>
+      <button type="button" id="submit">Upload session</button>
+      <p id="msg"></p>
+    </div>
+  </div>
+  <script>
+    const SUPABASE_URL = 'https://qhkeirrhjjtdyvrdkbxn.supabase.co';
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoa2VpcnJoamp0ZHl2cmRrYnhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjY0MjEsImV4cCI6MjA5MjQwMjQyMX0.vgHg7uMrhaZ2YwKhmBKxrgmHzm83Ze3gD3XapXpGACc';
+    const SNOW_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_group%253Db05a5f061b3ad490adc4a9f9bc4bcb46%255Estate%253D10%26sysparm_first_row%253D1%26sysparm_view%253D';
+    const params = new URLSearchParams(location.search);
+    const token = params.get('t');
+    const auto = params.get('auto') !== '0';
+    const errEl = document.getElementById('err');
+
+    function bmHref(tok) {
+      const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
+      const js = `(function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:document.cookie,p_g_ck:g})}).then(r=>r.json()).then(d=>alert(d.ok?'✅ Session updated! Monitoring resumes in ~1 min.':('❌ '+(d.error||'Failed')))).catch(e=>alert('❌ '+e))})();`;
+      return 'javascript:' + encodeURIComponent(js);
+    }
+
+    function goSnow() {
+      location.replace(SNOW_URL);
+    }
+
+    if (!token) {
+      errEl.style.display = 'block';
+      errEl.textContent = 'Missing link. Open the link from your Telegram session-failed alert.';
+    } else {
+      const href = bmHref(token);
+      document.getElementById('bookmark').href = href;
+      document.getElementById('bookmark2').href = href;
+      document.getElementById('snow').href = SNOW_URL;
+      document.getElementById('snow').onclick = (e) => { e.preventDefault(); goSnow(); };
+
+      const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
+      document.getElementById('submit').onclick = async () => {
+        const msg = document.getElementById('msg');
+        msg.textContent = 'Uploading...';
+        msg.className = '';
+        try {
+          const r = await fetch(rpc, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+            body: JSON.stringify({
+              p_token: token,
+              p_cookie: document.getElementById('cookie').value.trim(),
+              p_g_ck: document.getElementById('gck').value.trim(),
+            }),
+          });
+          const d = await r.json();
+          if (d.ok) { msg.textContent = '✅ ' + (d.message || 'Updated'); msg.className = 'ok'; }
+          else { msg.textContent = '❌ ' + (d.error || 'Failed'); msg.className = 'err'; }
+        } catch (e) {
+          msg.textContent = '❌ ' + e;
+          msg.className = 'err';
+        }
+      };
+
+      const ready = localStorage.getItem('monitor-bm-ready') === '1';
+      if (auto) {
+        if (!ready) {
+          document.getElementById('app').style.display = 'block';
+          document.getElementById('setup').style.display = 'block';
+        } else {
+          document.getElementById('splash').style.display = 'block';
+          let n = 3;
+          const el = document.getElementById('count');
+          const t = setInterval(() => {
+            n -= 1;
+            el.textContent = String(n);
+            if (n <= 0) { clearInterval(t); goSnow(); }
+          }, 700);
+        }
+      } else {
+        document.getElementById('app').style.display = 'block';
+        if (!ready) document.getElementById('setup').style.display = 'block';
+      }
+
+      document.getElementById('bookmark').addEventListener('click', () => {
+        localStorage.setItem('monitor-bm-ready', '1');
+      });
+    }
+  </script>
+</body>
+</html>
