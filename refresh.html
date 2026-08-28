@@ -22,33 +22,28 @@
   </style>
 </head>
 <body>
-  <h1>🔄 Tap to refresh session</h1>
+  <h1>🔄 Refresh session (manual)</h1>
   <p id="err" class="err"></p>
-  <div id="redirecting" style="display:none">
-    <div class="card">
-      <p>Opening your ServiceNow queue…</p>
-      <p><small>After MFA login, tap <strong>Back</strong> in Safari to return here and finish.</small></p>
-    </div>
-  </div>
   <div id="app" style="display:none">
-    <p><small>🔒 One-time link from Telegram — do not save.</small></p>
+    <p><small>One-time link from Telegram — do not save.</small></p>
     <div class="card">
-      <div class="step">Step 2 — Finish refresh</div>
+      <div class="step">Step 1 — Login to ServiceNow</div>
+      <p><small>Tap when you're ready. Complete MFA yourself.</small></p>
+      <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
+    </div>
+    <div class="card">
+      <div class="step">Step 2 — Upload session</div>
       <ol>
-        <li>Tap <strong>Copy session script</strong> below</li>
-        <li>Open your <strong>ServiceNow tab</strong></li>
-        <li>Paste in Safari <strong>address bar</strong> → Go</li>
-        <li>✅ Confirmation in Telegram</li>
+        <li>While on the <strong>ServiceNow page</strong>, come back here</li>
+        <li>Tap <strong>Copy session script</strong></li>
+        <li>Paste in Safari <strong>address bar</strong> on ServiceNow tab → Go</li>
+        <li>✅ Telegram confirmation</li>
       </ol>
       <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
       <p id="copyMsg"></p>
     </div>
     <div class="card">
-      <div class="step">Re-open queue if needed</div>
-      <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
-    </div>
-    <div class="card">
-      <div class="step">Fallback</div>
+      <div class="step">Or paste cookie manually</div>
       <textarea id="cookie" rows="3" placeholder="Cookie string"></textarea>
       <input id="gck" placeholder="g_ck token"/>
       <button type="button" class="purple" id="submit">Upload session</button>
@@ -61,7 +56,6 @@
     const SNOW_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D';
     const token = new URLSearchParams(location.search).get('t');
     const errEl = document.getElementById('err');
-    const REDIRECT_KEY = 'que_monitor_sn_opened';
 
     function sessionScript(tok) {
       const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
@@ -69,12 +63,14 @@
       return 'javascript:' + encodeURIComponent(js);
     }
 
-    function showFinishUI() {
-      document.getElementById('redirecting').style.display = 'none';
+    if (!token) {
+      errEl.style.display = 'block';
+      errEl.textContent = 'Missing link. Use the latest Telegram session-failed alert.';
+    } else {
       document.getElementById('app').style.display = 'block';
       document.getElementById('snow').href = SNOW_URL;
-      const script = sessionScript(token);
       const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
+      const script = sessionScript(token);
 
       document.getElementById('copyScript').onclick = async () => {
         const cm = document.getElementById('copyMsg');
@@ -91,7 +87,7 @@
           cm.textContent = '✅ Copied! Paste in Safari address bar on ServiceNow tab → Go';
           cm.className = 'ok';
         } catch (e) {
-          cm.textContent = '❌ Copy failed';
+          cm.textContent = '❌ Copy failed — use manual paste below';
           cm.className = 'err';
         }
       };
@@ -113,17 +109,6 @@
           msg.className = 'err';
         }
       };
-    }
-
-    if (!token) {
-      errEl.style.display = 'block';
-      errEl.textContent = 'Missing link. Use the latest Telegram session-failed alert.';
-    } else if (sessionStorage.getItem(REDIRECT_KEY + token) === '1') {
-      showFinishUI();
-    } else {
-      sessionStorage.setItem(REDIRECT_KEY + token, '1');
-      document.getElementById('redirecting').style.display = 'block';
-      location.replace(SNOW_URL);
     }
   </script>
 </body>
