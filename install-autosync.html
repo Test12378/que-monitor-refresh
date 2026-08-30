@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Auto-fix ServiceNow session</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:20px;background:#0f172a;color:#e2e8f0;line-height:1.55}
+    h1{font-size:1.35rem}
+    .card{background:#1e293b;border-radius:12px;padding:16px;margin:16px 0}
+    a.btn{display:block;text-align:center;background:#2563eb;color:#fff;text-decoration:none;padding:16px;border-radius:10px;font-weight:700;margin:10px 0}
+    .green{background:#16a34a}
+    small{color:#94a3b8}
+  </style>
+</head>
+<body>
+  <h1>Automatic session sync</h1>
+  <p>A Telegram link still cannot log into ServiceNow for you. This is the closest automatic fix: install once, then every time you open ServiceNow logged-in, the monitor refreshes itself. No cookie paste.</p>
+
+  <div class="card">
+    <p><strong>1. Install Tampermonkey</strong> in Firefox (same browser you use for ServiceNow).</p>
+    <a class="btn" href="https://addons.mozilla.org/firefox/addon/tampermonkey/">Install Tampermonkey</a>
+  </div>
+
+  <div class="card">
+    <p><strong>2. Install the auto-sync script</strong> (one tap).</p>
+    <a class="btn green" href="snow-autosync.user.js">Install auto-sync script</a>
+  </div>
+
+  <div class="card">
+    <p><strong>3. Open ServiceNow and log in</strong> (MFA as usual).</p>
+    <a class="btn" href="https://micron.service-now.com/now/nav/ui/classic/params/target/sn_si_incident_list.do%3Fsysparm_query%3Dactive%253Dtrue%255Eassignment_groupDYNAMICd6435e965f510100a9ad2572f2b47744%26sysparm_first_row%3D1%26sysparm_view%3D">Open ServiceNow queue (login)</a>
+    <p><small>After the queue loads, the script sends the session in the background. Telegram: ✅ Session refreshed.</small></p>
+  </div>
+</body>
+</html>
